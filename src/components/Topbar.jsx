@@ -1,6 +1,8 @@
 import { Bell, Menu } from "lucide-react";
 
-import { APP_NAME, PLACEHOLDER_USER } from "@/constants";
+import { APP_NAME } from "@/constants";
+import { useAuth } from "@/contexts/AuthContext";
+import { getInitials } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -13,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function Topbar({ onMenuClick }) {
+  const { user, logout } = useAuth();
+
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6">
       <div className="flex items-center gap-3">
@@ -30,7 +34,7 @@ export function Topbar({ onMenuClick }) {
 
       <div className="flex items-center gap-2 md:gap-4">
         <span className="hidden text-sm text-muted-foreground sm:inline">
-          {PLACEHOLDER_USER.name}
+          {user?.name}
         </span>
 
         <Button variant="ghost" size="icon" aria-label="Notifications">
@@ -46,7 +50,7 @@ export function Topbar({ onMenuClick }) {
             >
               <Avatar className="h-9 w-9">
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  {PLACEHOLDER_USER.initials}
+                  {getInitials(user?.name)}
                 </AvatarFallback>
               </Avatar>
             </Button>
@@ -54,15 +58,18 @@ export function Topbar({ onMenuClick }) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{PLACEHOLDER_USER.name}</p>
+                <p className="text-sm font-medium">{user?.name}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
                 <p className="text-xs text-muted-foreground">
-                  {PLACEHOLDER_USER.email}
+                  {user?.role?.replace("_", " ")}
                 </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled>Profile</DropdownMenuItem>
             <DropdownMenuItem disabled>Settings</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

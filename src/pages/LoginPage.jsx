@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router-dom";
 import { TreePine } from "lucide-react";
 
 import { loginSchema } from "@/types";
+import { ROUTES } from "@/constants";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +20,10 @@ import {
 } from "@/components/ui/card";
 
 export function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [errorMessage, setErrorMessage] = useState("");
+
   const {
     register,
     handleSubmit,
@@ -28,8 +36,15 @@ export function LoginPage() {
     },
   });
 
-  const onSubmit = () => {
-    // UI only — authentication will be implemented later
+  const onSubmit = async (values) => {
+    setErrorMessage("");
+
+    try {
+      await login(values);
+      navigate(ROUTES.DASHBOARD, { replace: true });
+    } catch (error) {
+      setErrorMessage(error.message || "Login failed. Please try again.");
+    }
   };
 
   return (
@@ -53,6 +68,12 @@ export function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
+            {errorMessage && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {errorMessage}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -97,7 +118,7 @@ export function LoginPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              Login
+              {isSubmitting ? "Signing in..." : "Login"}
             </Button>
           </CardFooter>
         </form>

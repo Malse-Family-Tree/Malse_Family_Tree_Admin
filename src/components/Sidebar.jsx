@@ -2,17 +2,19 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
+  Layers,
   ShieldCheck,
   LogOut,
   TreePine,
 } from "lucide-react";
 
 import { APP_NAME, ROUTES } from "@/constants";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-const navItems = [
+const baseNavItems = [
   {
     label: "Dashboard",
     to: ROUTES.DASHBOARD,
@@ -24,16 +26,28 @@ const navItems = [
     icon: Users,
   },
   {
-    label: "Admins",
-    to: ROUTES.ADMINS,
-    icon: ShieldCheck,
+    label: "Generations",
+    to: ROUTES.GENERATIONS,
+    icon: Layers,
   },
 ];
 
+const superAdminNavItem = {
+  label: "Admins",
+  to: ROUTES.ADMINS,
+  icon: ShieldCheck,
+};
+
 export function Sidebar({ className, onNavigate }) {
   const navigate = useNavigate();
+  const { logout, isSuperAdmin } = useAuth();
 
-  const handleLogout = () => {
+  const navItems = isSuperAdmin
+    ? [...baseNavItems, superAdminNavItem]
+    : baseNavItems;
+
+  const handleLogout = async () => {
+    await logout();
     navigate(ROUTES.LOGIN);
     onNavigate?.();
   };

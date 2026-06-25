@@ -1,18 +1,493 @@
+import { useState } from "react";
+import { Pencil, Plus, Trash2, Upload, Loader2, X } from "lucide-react";
+
+import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { DataTable } from "@/components/DataTable";
+import { Loader } from "@/components/Loader";
 import { PageHeader } from "@/components/PageHeader";
-import { EmptyState } from "@/components/EmptyState";
-import { Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useMemberMutations, useMembers, useAllMembers } from "@/hooks/useMembers";
+import { uploadService } from "@/services/upload.service";
+import { getPhotoUrl } from "@/utils/photoUrl";
+import { SearchInput } from "@/components/SearchInput";
+import { MemberRelationSelect } from "@/components/MemberRelationSelect";
+
+const emptyMember = {
+  name: "",
+  birthYear: new Date().getFullYear(),
+  deathYear: "",
+  title: "",
+  bio: "",
+  photo: "",
+  generation: 1,
+  parentIds: [],
+  spouseId: "",
+  childrenIds: [],
+  fatherName: "",
+  address: "",
+  mobile: "",
+  email: "",
+  information: "",
+};
+
+function toFormValues(member) {
+  return {
+    name: member.name || "",
+    birthYear: member.birthYear || new Date().getFullYear(),
+    deathYear: member.deathYear ?? "",
+    title: member.title || "",
+    bio: member.bio || "",
+    photo: member.photo || "",
+    generation: member.generation || 1,
+    parentIds: member.parentIds || [],
+    spouseId: member.spouseId || "",
+    childrenIds: member.childrenIds || [],
+    fatherName: member.fatherName || "",
+    address: member.address || "",
+    mobile: member.mobile || "",
+    email: member.email || "",
+    information: member.information || "",
+  };
+}
+
+function toPayload(values) {
+  return {
+    name: values.name,
+    birthYear: Number(values.birthYear),
+    deathYear: values.deathYear ? Number(values.deathYear) : null,
+    title: values.title,
+    bio: values.bio,
+    photo: values.photo,
+    generation: Number(values.generation),
+    parentIds: values.parentIds,
+    spouseId: values.spouseId || null,
+    childrenIds: values.childrenIds,
+    fatherName: values.fatherName,
+    address: values.address,
+    mobile: values.mobile,
+    email: values.email,
+    information: values.information,
+  };
+}
+
+function MemberFormModal({
+  open,
+  title,
+  initialValues,
+  onClose,
+  onSubmit,
+  isSubmitting,
+  errorMessage,
+  allMembers = [],
+  currentMemberId,
+}) {
+  const [values, setValues] = useState(initialValues);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  if (!open) {
+    return null;
+  }
+
+  const handleChange = (field) => (event) => {
+    setValues((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setUploadError("");
+    setUploadingPhoto(true);
+
+    try {
+      const response = await uploadService.uploadMemberPhoto(file);
+      setValues((current) => ({ ...current, photo: response.data.photo }));
+    } catch (error) {
+      setUploadError(error.message || "Failed to upload photo.");
+    } finally {
+      setUploadingPhoto(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await onSubmit(toPayload(values));
+  };
+
+  const photoPreview = getPhotoUrl(values.photo);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <CardTitle>{title}</CardTitle>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            {errorMessage && (
+              <div className="sm:col-span-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {errorMessage}
+              </div>
+            )}
+
+            <div className="sm:col-span-2 flex flex-col items-center gap-3 rounded-md border border-dashed border-input bg-muted/20 p-5">
+              <div className="relative">
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Member preview"
+                    className="h-28 w-28 rounded-full object-cover border-2 border-primary/20"
+                  />
+                ) : (
+                  <div className="flex h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/30 bg-muted/40">
+                    <Upload className="h-8 w-8 text-muted-foreground/50" />
+                  </div>
+                )}
+              </div>
+
+              <input
+                id="photo-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handlePhotoUpload}
+                disabled={uploadingPhoto || isSubmitting}
+              />
+
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                disabled={uploadingPhoto || isSubmitting}
+                onClick={() => document.getElementById("photo-upload")?.click()}
+              >
+                {uploadingPhoto ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Add Photo
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                JPEG, PNG, WEBP, or GIF — max 5MB
+              </p>
+
+              {uploadError && (
+                <p className="text-sm text-destructive">{uploadError}</p>
+              )}
+
+              <div className="w-full space-y-2 pt-1">
+                <Label htmlFor="photo-url" className="text-xs text-muted-foreground">
+                  Or paste photo URL
+                </Label>
+                <Input
+                  id="photo-url"
+                  value={values.photo}
+                  onChange={handleChange("photo")}
+                  placeholder="https://example.com/photo.jpg"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" value={values.name} onChange={handleChange("name")} required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input id="title" value={values.title} onChange={handleChange("title")} required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="generation">Generation</Label>
+              <Input id="generation" type="number" min="1" value={values.generation} onChange={handleChange("generation")} required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="birthYear">Birth Year</Label>
+              <Input id="birthYear" type="number" value={values.birthYear} onChange={handleChange("birthYear")} required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="deathYear">Death Year</Label>
+              <Input id="deathYear" type="number" value={values.deathYear} onChange={handleChange("deathYear")} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={values.email} onChange={handleChange("email")} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mobile">Mobile</Label>
+              <Input id="mobile" value={values.mobile} onChange={handleChange("mobile")} />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="fatherName">Father Name</Label>
+              <Input id="fatherName" value={values.fatherName} onChange={handleChange("fatherName")} />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="address">Address</Label>
+              <Input id="address" value={values.address} onChange={handleChange("address")} />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <MemberRelationSelect
+                label="Parents"
+                placeholder="Select parent(s)..."
+                members={allMembers}
+                value={values.parentIds}
+                onChange={(parentIds) =>
+                  setValues((current) => ({ ...current, parentIds }))
+                }
+                multiple
+                excludeId={currentMemberId}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <MemberRelationSelect
+                label="Spouse"
+                placeholder="Select spouse..."
+                members={allMembers}
+                value={values.spouseId}
+                onChange={(spouseId) =>
+                  setValues((current) => ({ ...current, spouseId }))
+                }
+                excludeId={currentMemberId}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <MemberRelationSelect
+                label="Children"
+                placeholder="Select child(ren)..."
+                members={allMembers}
+                value={values.childrenIds}
+                onChange={(childrenIds) =>
+                  setValues((current) => ({ ...current, childrenIds }))
+                }
+                multiple
+                excludeId={currentMemberId}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="bio">Bio</Label>
+              <textarea
+                id="bio"
+                className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={values.bio}
+                onChange={handleChange("bio")}
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="information">Additional Information</Label>
+              <textarea
+                id="information"
+                className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={values.information}
+                onChange={handleChange("information")}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Member"}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
 
 export function MembersPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const { data: members = [], isLoading, isError, isFetching } = useMembers(searchQuery);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [formError, setFormError] = useState("");
+  const { data: allMembers = [] } = useAllMembers({ enabled: formOpen });
+  const { createMember, updateMember, deleteMember } = useMemberMutations();
+
+  const openCreate = () => {
+    setEditingMember(null);
+    setFormError("");
+    setFormOpen(true);
+  };
+
+  const openEdit = (member) => {
+    setEditingMember(member);
+    setFormError("");
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingMember(null);
+    setFormError("");
+  };
+
+  const handleSubmit = async (payload) => {
+    try {
+      if (editingMember) {
+        await updateMember.mutateAsync({ id: editingMember.id, payload });
+      } else {
+        await createMember.mutateAsync(payload);
+      }
+      closeForm();
+    } catch (error) {
+      setFormError(error.message || "Failed to save member.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await deleteMember.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch {
+      setDeleteTarget(null);
+    }
+  };
+
+  const columns = [
+    { key: "name", header: "Name" },
+    { key: "title", header: "Title" },
+    { key: "generation", header: "Generation" },
+    { key: "email", header: "Email" },
+    {
+      key: "actions",
+      header: "Actions",
+      className: "w-32",
+      render: (row) => (
+        <div className="flex gap-2">
+          <Button variant="ghost" size="icon" onClick={() => openEdit(row)} aria-label="Edit member">
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDeleteTarget(row)}
+            aria-label="Delete member"
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Family Members"
-        description="Member management will be implemented."
+        description="Create, update, and manage family member records."
+        action={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Member
+          </Button>
+        }
       />
-      <EmptyState
-        icon={Users}
-        title="No members yet"
-        description="Family member management features will be available in a future update."
+
+      <SearchInput
+        value={searchQuery}
+        onChange={(event) => setSearchQuery(event.target.value)}
+        onClear={() => setSearchQuery("")}
+        placeholder="Search by First Name or Father's Name"
+        className="max-w-md"
+      />
+
+      {isLoading ? (
+        <Loader label="Loading members..." />
+      ) : isError ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load members. Please ensure you are logged in and the backend is running.
+        </div>
+      ) : isFetching && searchQuery.trim() ? (
+        <Loader label="Searching members..." />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={members}
+          emptyTitle={
+            searchQuery.trim()
+              ? "No family members found."
+              : "No members yet"
+          }
+          emptyDescription={
+            searchQuery.trim()
+              ? "Try a different first name or father's name."
+              : "Add your first family member to get started."
+          }
+        />
+      )}
+
+      <MemberFormModal
+        key={editingMember?.id || "create"}
+        open={formOpen}
+        title={editingMember ? "Edit Member" : "Add Member"}
+        initialValues={editingMember ? toFormValues(editingMember) : emptyMember}
+        onClose={closeForm}
+        onSubmit={handleSubmit}
+        isSubmitting={createMember.isPending || updateMember.isPending}
+        errorMessage={formError}
+        allMembers={allMembers}
+        currentMemberId={editingMember?.id}
+      />
+
+      <ConfirmationModal
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete member?"
+        description={`This will permanently remove ${deleteTarget?.name || "this member"}.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
       />
     </div>
   );

@@ -4,11 +4,14 @@ export const ROUTES = {
   LOGIN: "/login",
   DASHBOARD: "/dashboard",
   MEMBERS: "/members",
+  GENERATIONS: "/generations",
   ADMINS: "/admins",
 };
 
 export const QUERY_KEYS = {
+  HEALTH: "health",
   MEMBERS: "members",
+  GENERATIONS: "generations",
   ADMINS: "admins",
   DASHBOARD: "dashboard",
 };

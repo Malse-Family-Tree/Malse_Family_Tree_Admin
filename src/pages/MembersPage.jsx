@@ -16,10 +16,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMemberMutations, useMembers, useAllMembers } from "@/hooks/useMembers";
+import { formatGenerationLabel, useGenerations } from "@/hooks/useGenerations";
 import { uploadService } from "@/services/upload.service";
 import { getPhotoUrl } from "@/utils/photoUrl";
 import { SearchInput } from "@/components/SearchInput";
 import { MemberRelationSelect } from "@/components/MemberRelationSelect";
+import { memberFormSchema } from "@/types/schemas";
 
 const emptyMember = {
   name: "",
@@ -28,7 +30,7 @@ const emptyMember = {
   title: "",
   bio: "",
   photo: "",
-  generation: 1,
+  generation: "",
   parentIds: [],
   spouseId: "",
   childrenIds: [],
@@ -47,7 +49,7 @@ function toFormValues(member) {
     title: member.title || "",
     bio: member.bio || "",
     photo: member.photo || "",
-    generation: member.generation || 1,
+    generation: member.generation?.toString() || "",
     parentIds: member.parentIds || [],
     spouseId: member.spouseId || "",
     childrenIds: member.childrenIds || [],
@@ -88,11 +90,13 @@ function MemberFormModal({
   isSubmitting,
   errorMessage,
   allMembers = [],
+  generations = [],
   currentMemberId,
 }) {
   const [values, setValues] = useState(initialValues);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [validationError, setValidationError] = useState("");
 
   if (!open) {
     return null;
@@ -125,7 +129,17 @@ function MemberFormModal({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await onSubmit(toPayload(values));
+    setValidationError("");
+
+    const payload = toPayload(values);
+    const validation = memberFormSchema.safeParse(payload);
+
+    if (!validation.success) {
+      setValidationError(validation.error.errors[0]?.message || "Please check the form fields.");
+      return;
+    }
+
+    await onSubmit(validation.data);
   };
 
   const photoPreview = getPhotoUrl(values.photo);
@@ -148,9 +162,9 @@ function MemberFormModal({
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            {errorMessage && (
+            {(errorMessage || validationError) && (
               <div className="sm:col-span-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {errorMessage}
+                {errorMessage || validationError}
               </div>
             )}
 
@@ -231,7 +245,28 @@ function MemberFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="generation">Generation</Label>
-              <Input id="generation" type="number" min="1" value={values.generation} onChange={handleChange("generation")} required />
+              {generations.length > 0 ? (
+                <select
+                  id="generation"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={values.generation}
+                  onChange={handleChange("generation")}
+                  required
+                >
+                  <option value="" disabled>
+                    Select generation...
+                  </option>
+                  {generations.map((generation) => (
+                    <option key={generation.id} value={generation.number}>
+                      {formatGenerationLabel(generation)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No generations defined yet. Add generations first under the Generations tab.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -332,7 +367,7 @@ function MemberFormModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || generations.length === 0}>
               {isSubmitting ? "Saving..." : "Save Member"}
             </Button>
           </CardFooter>
@@ -345,9 +380,11 @@ function MemberFormModal({
 export function MembersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const { data: members = [], isLoading, isError, isFetching } = useMembers(searchQuery);
+  const { data: generations = [] } = useGenerations();
   const [formOpen, setFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
   const [formError, setFormError] = useState("");
   const { data: allMembers = [] } = useAllMembers({ enabled: formOpen });
   const { createMember, updateMember, deleteMember } = useMemberMutations();
@@ -356,6 +393,13 @@ export function MembersPage() {
     setEditingMember(null);
     setFormError("");
     setFormOpen(true);
+  };
+
+  const getGenerationLabel = (generationNumber) => {
+    const generation = generations.find((item) => item.number === generationNumber);
+    return generation
+      ? formatGenerationLabel(generation)
+      : `Generation ${generationNumber}`;
   };
 
   const openEdit = (member) => {
@@ -386,18 +430,24 @@ export function MembersPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
+    setDeleteError("");
+
     try {
       await deleteMember.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
-    } catch {
-      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error.message || "Failed to delete member.");
     }
   };
 
   const columns = [
     { key: "name", header: "Name" },
     { key: "title", header: "Title" },
-    { key: "generation", header: "Generation" },
+    {
+      key: "generation",
+      header: "Generation",
+      render: (row) => getGenerationLabel(row.generation),
+    },
     { key: "email", header: "Email" },
     {
       key: "actions",
@@ -471,22 +521,37 @@ export function MembersPage() {
         key={editingMember?.id || "create"}
         open={formOpen}
         title={editingMember ? "Edit Member" : "Add Member"}
-        initialValues={editingMember ? toFormValues(editingMember) : emptyMember}
+        initialValues={
+          editingMember
+            ? toFormValues(editingMember)
+            : {
+                ...emptyMember,
+                generation: generations[0]?.number?.toString() || "",
+              }
+        }
         onClose={closeForm}
         onSubmit={handleSubmit}
         isSubmitting={createMember.isPending || updateMember.isPending}
         errorMessage={formError}
         allMembers={allMembers}
+        generations={generations}
         currentMemberId={editingMember?.id}
       />
 
       <ConfirmationModal
         open={Boolean(deleteTarget)}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
         title="Delete member?"
         description={`This will permanently remove ${deleteTarget?.name || "this member"}.`}
         confirmLabel="Delete"
         variant="destructive"
+        errorMessage={deleteError}
+        isSubmitting={deleteMember.isPending}
         onConfirm={handleDelete}
       />
     </div>

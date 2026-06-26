@@ -18,6 +18,8 @@ export function ConfirmationModal({
   cancelLabel = "Cancel",
   onConfirm,
   variant = "default",
+  errorMessage = "",
+  isSubmitting = false,
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -26,17 +28,23 @@ export function ConfirmationModal({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {errorMessage ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        ) : null}
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel disabled={isSubmitting}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
+            disabled={isSubmitting}
             className={
               variant === "destructive"
                 ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 : undefined
             }
           >
-            {confirmLabel}
+            {isSubmitting ? "Please wait..." : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -159,6 +159,7 @@ export function AdminsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
   const [formError, setFormError] = useState("");
 
   const openCreate = () => {
@@ -195,11 +196,13 @@ export function AdminsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
+    setDeleteError("");
+
     try {
       await deleteAdmin.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
-    } catch {
-      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error.message || "Failed to delete admin.");
     }
   };
 
@@ -295,11 +298,18 @@ export function AdminsPage() {
 
       <ConfirmationModal
         open={Boolean(deleteTarget)}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
         title="Delete admin?"
         description={`This will permanently remove ${deleteTarget?.name || "this admin"}.`}
         confirmLabel="Delete"
         variant="destructive"
+        errorMessage={deleteError}
+        isSubmitting={deleteAdmin.isPending}
         onConfirm={handleDelete}
       />
     </div>

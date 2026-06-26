@@ -128,8 +128,10 @@ export function GenerationsPage() {
     useGenerationMutations();
   const [formOpen, setFormOpen] = useState(false);
   const [editingGeneration, setEditingGeneration] = useState(null);
+  const [createDefaults, setCreateDefaults] = useState(emptyGeneration);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [formError, setFormError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const openCreate = () => {
     const nextNumber =
@@ -139,11 +141,9 @@ export function GenerationsPage() {
 
     setEditingGeneration(null);
     setFormError("");
+    setCreateDefaults({ number: nextNumber, name: "" });
     setFormOpen(true);
-    setInitialFormNumber(nextNumber);
   };
-
-  const [initialFormNumber, setInitialFormNumber] = useState(1);
 
   const openEdit = (generation) => {
     setEditingGeneration(generation);
@@ -177,10 +177,11 @@ export function GenerationsPage() {
     if (!deleteTarget) return;
 
     try {
+      setDeleteError("");
       await deleteGeneration.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
     } catch (error) {
-      setFormError(error.message || "Failed to delete generation.");
+      setDeleteError(error.message || "Failed to delete generation.");
       setDeleteTarget(null);
     }
   };
@@ -250,6 +251,12 @@ export function GenerationsPage() {
         </p>
       </div>
 
+      {deleteError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {deleteError}
+        </div>
+      )}
+
       {isLoading ? (
         <Loader label="Loading generations..." />
       ) : isError ? (
@@ -266,13 +273,13 @@ export function GenerationsPage() {
       )}
 
       <GenerationFormModal
-        key={editingGeneration?.id || `create-${initialFormNumber}`}
+        key={editingGeneration?.id || `create-${createDefaults.number}`}
         open={formOpen}
         title={editingGeneration ? "Edit Generation" : "Add Generation"}
         initialValues={
           editingGeneration
             ? { number: editingGeneration.number, name: editingGeneration.name }
-            : { number: initialFormNumber, name: "" }
+            : createDefaults
         }
         isEditing={Boolean(editingGeneration)}
         onClose={closeForm}

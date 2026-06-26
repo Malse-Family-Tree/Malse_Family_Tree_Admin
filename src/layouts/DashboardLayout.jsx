@@ -21,14 +21,14 @@ export function DashboardLayout() {
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 transition-transform md:fixed md:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <Sidebar onNavigate={() => setSidebarOpen(false)} />
       </div>
 
-      <div className="flex flex-1 flex-col md:ml-0">
+      <div className="flex flex-1 flex-col md:ml-64">
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <Outlet />

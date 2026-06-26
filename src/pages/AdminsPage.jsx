@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { DataTable } from "@/components/DataTable";
 import { Loader } from "@/components/Loader";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchSelect } from "@/components/SearchSelect";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -68,10 +70,10 @@ function AdminFormModal({
     await onSubmit(payload);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <Card className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b pb-4 shrink-0">
           <CardTitle>{title}</CardTitle>
           <Button
             type="button"
@@ -84,8 +86,8 @@ function AdminFormModal({
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <CardContent className="space-y-4 overflow-y-auto py-4">
             {errorMessage && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {errorMessage}
@@ -93,18 +95,20 @@ function AdminFormModal({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Name <span className="text-destructive">*</span></Label>
               <Input id="name" value={values.name} onChange={handleChange("name")} required />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
               <Input id="email" type="email" value={values.email} onChange={handleChange("email")} required />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">
-                Password{isEditing ? " (leave blank to keep current)" : ""}
+                Password
+                {!isEditing && <span className="text-destructive ml-1">*</span>}
+                {isEditing ? " (leave blank to keep current)" : ""}
               </Label>
               <Input
                 id="password"
@@ -116,16 +120,19 @@ function AdminFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <select
+              <SearchSelect
                 id="role"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                label="Role"
                 value={values.role}
-                onChange={handleChange("role")}
-              >
-                <option value="ADMIN">Admin</option>
-                <option value="SUPER_ADMIN">Super Admin</option>
-              </select>
+                onChange={(val) =>
+                  setValues((current) => ({ ...current, role: val }))
+                }
+                options={[
+                  { label: "Admin", value: "ADMIN" },
+                  { label: "Super Admin", value: "SUPER_ADMIN" },
+                ]}
+                required
+              />
             </div>
 
             {isEditing && (
@@ -139,7 +146,7 @@ function AdminFormModal({
               </label>
             )}
           </CardContent>
-          <CardFooter className="flex justify-end gap-2">
+          <CardFooter className="flex shrink-0 justify-end gap-2 border-t p-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
@@ -149,18 +156,32 @@ function AdminFormModal({
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 export function AdminsPage() {
   const { data: admins = [], isLoading, isError } = useAdmins();
-  const { createAdmin, updateAdmin, deleteAdmin } = useAdminMutations();
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingAdmin, setEditingAdmin] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState("");
+  const [bulkDeleteError, setBulkDeleteError] = useState("");
   const [formError, setFormError] = useState("");
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState(null);
+
+  const { createAdmin, updateAdmin, deleteAdmin, bulkDeleteAdmins } = useAdminMutations();
+
+  const handleBulkDelete = async (selectedIds, clearSelection) => {
+    setBulkDeleteError("");
+    try {
+      await bulkDeleteAdmins.mutateAsync(selectedIds);
+      clearSelection();
+    } catch (error) {
+      setBulkDeleteError(error.message || "Failed to delete selected admins.");
+    }
+  };
 
   const openCreate = () => {
     setEditingAdmin(null);
@@ -259,6 +280,12 @@ export function AdminsPage() {
         }
       />
 
+      {bulkDeleteError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {bulkDeleteError}
+        </div>
+      )}
+
       {isLoading ? (
         <Loader label="Loading admins..." />
       ) : isError ? (
@@ -271,6 +298,9 @@ export function AdminsPage() {
           data={admins}
           emptyTitle="No admins configured"
           emptyDescription="Create an admin account to manage the platform."
+          onDeleteSelected={handleBulkDelete}
+          isDeleting={bulkDeleteAdmins.isPending}
+          itemName="admin"
         />
       )}
 

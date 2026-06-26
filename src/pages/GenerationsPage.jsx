@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ConfirmationModal";
@@ -55,10 +56,10 @@ function GenerationFormModal({
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <Card className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b pb-4 shrink-0">
           <CardTitle>{title}</CardTitle>
           <Button
             type="button"
@@ -71,8 +72,8 @@ function GenerationFormModal({
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <CardContent className="space-y-4 overflow-y-auto py-4">
             {errorMessage && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {errorMessage}
@@ -80,7 +81,7 @@ function GenerationFormModal({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="number">Generation Number</Label>
+              <Label htmlFor="number">Generation Number <span className="text-destructive">*</span></Label>
               <Input
                 id="number"
                 type="number"
@@ -98,7 +99,7 @@ function GenerationFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="name">Generation Name</Label>
+              <Label htmlFor="name">Generation Name <span className="text-destructive">*</span></Label>
               <Input
                 id="name"
                 value={values.name}
@@ -108,7 +109,7 @@ function GenerationFormModal({
               />
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end gap-2">
+          <CardFooter className="flex shrink-0 justify-end gap-2 border-t p-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
@@ -118,20 +119,34 @@ function GenerationFormModal({
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 export function GenerationsPage() {
   const { data: generations = [], isLoading, isError } = useGenerations();
-  const { createGeneration, updateGeneration, deleteGeneration } =
-    useGenerationMutations();
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingGeneration, setEditingGeneration] = useState(null);
-  const [createDefaults, setCreateDefaults] = useState(emptyGeneration);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [bulkDeleteError, setBulkDeleteError] = useState("");
+  
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingGeneration, setEditingGeneration] = useState(null);
+  const [createDefaults, setCreateDefaults] = useState(emptyGeneration);
+
+  const { createGeneration, updateGeneration, deleteGeneration, bulkDeleteGenerations } =
+    useGenerationMutations();
+
+  const handleBulkDelete = async (selectedIds, clearSelection) => {
+    setBulkDeleteError("");
+    try {
+      await bulkDeleteGenerations.mutateAsync(selectedIds);
+      clearSelection();
+    } catch (error) {
+      setBulkDeleteError(error.message || "Failed to delete selected generations.");
+    }
+  };
 
   const openCreate = () => {
     const nextNumber =
@@ -257,6 +272,12 @@ export function GenerationsPage() {
         </div>
       )}
 
+      {bulkDeleteError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {bulkDeleteError}
+        </div>
+      )}
+
       {isLoading ? (
         <Loader label="Loading generations..." />
       ) : isError ? (
@@ -269,6 +290,9 @@ export function GenerationsPage() {
           data={generations}
           emptyTitle="No generations yet"
           emptyDescription="Add your first generation to organize the family tree."
+          onDeleteSelected={handleBulkDelete}
+          isDeleting={bulkDeleteGenerations.isPending}
+          itemName="generation"
         />
       )}
 

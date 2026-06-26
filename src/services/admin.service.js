@@ -25,4 +25,9 @@ export const adminService = {
     const { data } = await apiClient.delete(`/admin/${id}`);
     return data;
   },
+
+  bulkRemove: async (ids) => {
+    const { data } = await apiClient.post(`/admin/bulk-delete`, { ids });
+    return data;
+  },
 };

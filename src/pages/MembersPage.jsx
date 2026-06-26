@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Pencil, Plus, Trash2, Upload, Loader2, X } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ConfirmationModal";
@@ -21,6 +22,7 @@ import { uploadService } from "@/services/upload.service";
 import { getPhotoUrl } from "@/utils/photoUrl";
 import { SearchInput } from "@/components/SearchInput";
 import { MemberRelationSelect } from "@/components/MemberRelationSelect";
+import { SearchSelect } from "@/components/SearchSelect";
 import { memberFormSchema } from "@/types/schemas";
 
 const emptyMember = {
@@ -144,10 +146,10 @@ function MemberFormModal({
 
   const photoPreview = getPhotoUrl(values.photo);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <Card className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b pb-4 shrink-0">
           <CardTitle>{title}</CardTitle>
           <Button
             type="button"
@@ -160,8 +162,8 @@ function MemberFormModal({
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <CardContent className="grid gap-4 sm:grid-cols-2 overflow-y-auto py-4">
             {(errorMessage || validationError) && (
               <div className="sm:col-span-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {errorMessage || validationError}
@@ -219,49 +221,33 @@ function MemberFormModal({
               {uploadError && (
                 <p className="text-sm text-destructive">{uploadError}</p>
               )}
-
-              <div className="w-full space-y-2 pt-1">
-                <Label htmlFor="photo-url" className="text-xs text-muted-foreground">
-                  Or paste photo URL
-                </Label>
-                <Input
-                  id="photo-url"
-                  value={values.photo}
-                  onChange={handleChange("photo")}
-                  placeholder="https://example.com/photo.jpg"
-                />
-              </div>
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Name <span className="text-destructive">*</span></Label>
               <Input id="name" value={values.name} onChange={handleChange("name")} required />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
               <Input id="title" value={values.title} onChange={handleChange("title")} required />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="generation">Generation</Label>
               {generations.length > 0 ? (
-                <select
+                <SearchSelect
                   id="generation"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  label="Generation"
                   value={values.generation}
-                  onChange={handleChange("generation")}
+                  onChange={(val) =>
+                    setValues((current) => ({ ...current, generation: val }))
+                  }
+                  options={generations.map((g) => ({
+                    label: formatGenerationLabel(g),
+                    value: String(g.number),
+                  }))}
                   required
-                >
-                  <option value="" disabled>
-                    Select generation...
-                  </option>
-                  {generations.map((generation) => (
-                    <option key={generation.id} value={generation.number}>
-                      {formatGenerationLabel(generation)}
-                    </option>
-                  ))}
-                </select>
+                />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No generations defined yet. Add generations first under the Generations tab.
@@ -270,7 +256,7 @@ function MemberFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="birthYear">Birth Year</Label>
+              <Label htmlFor="birthYear">Birth Year <span className="text-destructive">*</span></Label>
               <Input id="birthYear" type="number" value={values.birthYear} onChange={handleChange("birthYear")} required />
             </div>
 
@@ -285,8 +271,8 @@ function MemberFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mobile">Mobile</Label>
-              <Input id="mobile" value={values.mobile} onChange={handleChange("mobile")} />
+              <Label htmlFor="mobile">Mobile <span className="text-destructive">*</span></Label>
+              <Input id="mobile" value={values.mobile} onChange={handleChange("mobile")} required />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
@@ -295,8 +281,8 @@ function MemberFormModal({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="address">Address</Label>
-              <Input id="address" value={values.address} onChange={handleChange("address")} />
+              <Label htmlFor="address">Address <span className="text-destructive">*</span></Label>
+              <Input id="address" value={values.address} onChange={handleChange("address")} required />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
@@ -344,12 +330,13 @@ function MemberFormModal({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="bio">Bio</Label>
+              <Label htmlFor="bio">Bio <span className="text-destructive">*</span></Label>
               <textarea
                 id="bio"
                 className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={values.bio}
                 onChange={handleChange("bio")}
+                required
               />
             </div>
 
@@ -363,7 +350,7 @@ function MemberFormModal({
               />
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end gap-2">
+          <CardFooter className="flex shrink-0 justify-end gap-2 border-t p-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
@@ -373,7 +360,8 @@ function MemberFormModal({
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -385,9 +373,20 @@ export function MembersPage() {
   const [editingMember, setEditingMember] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState("");
+  const [bulkDeleteError, setBulkDeleteError] = useState("");
   const [formError, setFormError] = useState("");
   const { data: allMembers = [] } = useAllMembers({ enabled: formOpen });
-  const { createMember, updateMember, deleteMember } = useMemberMutations();
+  const { createMember, updateMember, deleteMember, bulkDeleteMembers } = useMemberMutations();
+
+  const handleBulkDelete = async (selectedIds, clearSelection) => {
+    setBulkDeleteError("");
+    try {
+      await bulkDeleteMembers.mutateAsync(selectedIds);
+      clearSelection();
+    } catch (error) {
+      setBulkDeleteError(error.message || "Failed to delete selected members.");
+    }
+  };
 
   const openCreate = () => {
     setEditingMember(null);
@@ -484,6 +483,12 @@ export function MembersPage() {
         }
       />
 
+      {bulkDeleteError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {bulkDeleteError}
+        </div>
+      )}
+
       <SearchInput
         value={searchQuery}
         onChange={(event) => setSearchQuery(event.target.value)}
@@ -514,6 +519,9 @@ export function MembersPage() {
               ? "Try a different first name or father's name."
               : "Add your first family member to get started."
           }
+          onDeleteSelected={handleBulkDelete}
+          isDeleting={bulkDeleteMembers.isPending}
+          itemName="member"
         />
       )}
 

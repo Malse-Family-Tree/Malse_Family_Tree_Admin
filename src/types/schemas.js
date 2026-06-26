@@ -27,7 +27,7 @@ export const memberFormSchema = z.object({
     .max(2100, "Birth year must be 2100 or earlier"),
   deathYear: optionalDeathYear,
   title: z.string().trim().min(1, "Title is required").max(100, "Title is too long"),
-  bio: z.string().max(5000, "Biography is too long").optional().default(""),
+  bio: z.string().trim().min(1, "Biography is required").max(5000, "Biography is too long"),
   photo: z.string().max(2048, "Photo URL is too long").optional().default(""),
   generation: z.coerce
     .number({ invalid_type_error: "Generation is required" })
@@ -37,12 +37,12 @@ export const memberFormSchema = z.object({
   spouseId: z.string().nullable().optional(),
   childrenIds: z.array(z.string()).default([]),
   fatherName: z.string().max(200, "Father's name is too long").optional().default(""),
-  address: z.string().max(500, "Address is too long").optional().default(""),
+  address: z.string().trim().min(1, "Address is required").max(500, "Address is too long"),
   mobile: z
     .string()
-    .max(20, "Mobile must be at most 20 characters")
-    .optional()
-    .default(""),
+    .trim()
+    .min(1, "Mobile number is required")
+    .max(20, "Mobile must be at most 20 characters"),
   email: z
     .string()
     .trim()

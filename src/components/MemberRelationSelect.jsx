@@ -63,6 +63,7 @@ export function MemberRelationSelect({
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setOpen(false);
+        setSearchQuery("");
       }
     };
 
@@ -127,34 +128,25 @@ export function MemberRelationSelect({
       )}
 
       <div className="relative">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          onClick={() => setOpen((current) => !current)}
-          className={cn(
-            "h-10 w-full justify-between font-normal",
-            !selectedMembers.length && "text-muted-foreground"
-          )}
-        >
-          <span className="truncate">{displayText}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            value={open ? searchQuery : (!multiple && selectedMembers.length > 0 ? getMemberLabel(selectedMembers[0]) : "")}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (!open) setOpen(true);
+            }}
+            onClick={() => setOpen(true)}
+            placeholder={placeholder}
+            disabled={disabled}
+            className="w-full pl-9 pr-10"
+          />
+          <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50 pointer-events-none" />
+        </div>
 
         {open && (
           <div className="absolute z-50 mt-1 w-full rounded-md border bg-background shadow-lg">
-            <div className="border-b p-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by name or father's name..."
-                  className="pl-8"
-                  autoFocus
-                />
-              </div>
-            </div>
 
             <ul className="max-h-48 overflow-y-auto py-1">
               {filteredMembers.length === 0 ? (

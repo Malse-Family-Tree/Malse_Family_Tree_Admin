@@ -15,7 +15,7 @@ export function SearchInput({
     <div className={cn("relative w-full max-w-sm", className)}>
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
-        type="search"
+        type="text"
         value={value}
         onChange={onChange}
         placeholder={placeholder}

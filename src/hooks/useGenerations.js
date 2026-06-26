@@ -34,7 +34,12 @@ export function useGenerationMutations() {
     onSuccess: invalidate,
   });
 
-  return { createGeneration, updateGeneration, deleteGeneration };
+  const bulkDeleteGenerations = useMutation({
+    mutationFn: (ids) => generationsService.bulkRemove(ids),
+    onSuccess: invalidate,
+  });
+
+  return { createGeneration, updateGeneration, deleteGeneration, bulkDeleteGenerations };
 }
 
 export function formatGenerationLabel(generation) {

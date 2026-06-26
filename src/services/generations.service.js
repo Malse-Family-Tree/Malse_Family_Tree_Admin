@@ -25,4 +25,9 @@ export const generationsService = {
     const { data } = await apiClient.delete(`/generations/${id}`);
     return data;
   },
+
+  bulkRemove: async (ids) => {
+    const { data } = await apiClient.post(`/generations/bulk-delete`, { ids });
+    return data;
+  },
 };

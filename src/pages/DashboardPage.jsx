@@ -6,8 +6,6 @@ import {
   UserPlus,
   FileEdit,
   Server,
-  CheckCircle2,
-  XCircle,
   Loader2,
 } from "lucide-react";
 
@@ -23,77 +21,9 @@ import {
 import { PLACEHOLDER_USER } from "@/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardStats } from "@/hooks/useDashboard";
-import { useBackendHealth } from "@/hooks/useHealth";
 import { formatDate } from "@/utils";
 import { cn } from "@/lib/utils";
 
-function BackendStatusCard() {
-  const { isLoading, isSuccess, data } = useBackendHealth();
-
-  const isConnected = isSuccess && data?.success;
-
-  return (
-    <Card className="border-0 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div>
-          <CardTitle className="text-base">Backend Status</CardTitle>
-          <CardDescription>
-            Real-time connection to the Malse Family Tree API
-          </CardDescription>
-        </div>
-        <div
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg",
-            isLoading && "bg-muted",
-            isConnected && "bg-emerald-50",
-            !isLoading && !isConnected && "bg-red-50"
-          )}
-        >
-          {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          ) : (
-            <Server
-              className={cn(
-                "h-5 w-5",
-                isConnected ? "text-emerald-600" : "text-red-600"
-              )}
-            />
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-3">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">
-              Checking backend connection...
-            </p>
-          ) : isConnected ? (
-            <>
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-              <div>
-                <p className="font-medium text-emerald-700">Backend Connected</p>
-                <p className="text-sm text-muted-foreground">
-                  {data?.message || "API is responding normally"}
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <XCircle className="h-5 w-5 shrink-0 text-red-600" />
-              <div>
-                <p className="font-medium text-red-700">Backend Offline</p>
-                <p className="text-sm text-muted-foreground">
-                  Unable to reach the server. Ensure the backend is running on
-                  port 5000.
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function StatCard({ title, value, description, icon: Icon, color, bg, isLoading }) {
   return (
@@ -167,7 +97,6 @@ export function DashboardPage() {
         description="Overview of your family tree administration dashboard."
       />
 
-      <BackendStatusCard />
 
       {isError && (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

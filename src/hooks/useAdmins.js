@@ -34,5 +34,10 @@ export function useAdminMutations() {
     onSuccess: invalidate,
   });
 
-  return { createAdmin, updateAdmin, deleteAdmin };
+  const bulkDeleteAdmins = useMutation({
+    mutationFn: (ids) => adminService.bulkRemove(ids),
+    onSuccess: invalidate,
+  });
+
+  return { createAdmin, updateAdmin, deleteAdmin, bulkDeleteAdmins };
 }

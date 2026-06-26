@@ -26,6 +26,11 @@ export const membersService = {
     return data;
   },
 
+  bulkRemove: async (ids) => {
+    const { data } = await apiClient.post(`/members/bulk-delete`, { ids });
+    return data;
+  },
+
   search: async (query) => {
     const { data } = await apiClient.get("/members/search", {
       params: { q: query },

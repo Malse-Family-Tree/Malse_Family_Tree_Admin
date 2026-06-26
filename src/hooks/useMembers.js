@@ -44,7 +44,12 @@ export function useMemberMutations() {
     onSuccess: invalidate,
   });
 
-  return { createMember, updateMember, deleteMember };
+  const bulkDeleteMembers = useMutation({
+    mutationFn: (ids) => membersService.bulkRemove(ids),
+    onSuccess: invalidate,
+  });
+
+  return { createMember, updateMember, deleteMember, bulkDeleteMembers };
 }
 
 export function useAllMembers(options = {}) {

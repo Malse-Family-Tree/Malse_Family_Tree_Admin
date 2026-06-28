@@ -1,42 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-function filterMembers(members, query, excludeId) {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  return members.filter((member) => {
-    if (excludeId && member.id === excludeId) {
-      return false;
-    }
-
-    if (!normalizedQuery) {
-      return true;
-    }
-
-    return (
-      member.name?.toLowerCase().includes(normalizedQuery) ||
-      member.fatherName?.toLowerCase().includes(normalizedQuery)
-    );
-  });
-}
+import { membersService } from "@/services/members.service";
 
 function getMemberLabel(member) {
+  if (!member) return "";
   if (member.fatherName) {
     return `${member.name} (Father: ${member.fatherName})`;
   }
-
   return member.name;
 }
 
 export function MemberRelationSelect({
   label,
-  placeholder = "Select member...",
-  members = [],
+  placeholder = "Search member...",
   value,
   onChange,
   multiple = false,
@@ -46,18 +27,60 @@ export function MemberRelationSelect({
   const containerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // We keep track of selected member objects so we can display their names
+  const [selectedObjects, setSelectedObjects] = useState([]);
 
-  const selectedIds = multiple ? value : value ? [value] : [];
+  const selectedIds = multiple ? (Array.isArray(value) ? value : []) : (value ? [value] : []);
 
-  const selectedMembers = useMemo(
-    () => members.filter((member) => selectedIds.includes(member.id)),
-    [members, selectedIds]
-  );
+  // Fetch initial selected members if they exist and we don't have them in state
+  useEffect(() => {
+    const fetchInitial = async () => {
+      const idsToFetch = selectedIds.filter(
+        (id) => !selectedObjects.find((obj) => obj.id === id)
+      );
 
-  const filteredMembers = useMemo(
-    () => filterMembers(members, searchQuery, excludeId),
-    [members, searchQuery, excludeId]
-  );
+      if (idsToFetch.length === 0) return;
+
+      try {
+        const fetched = await Promise.all(
+          idsToFetch.map((id) => membersService.getById(id).then(res => res.data))
+        );
+        setSelectedObjects((prev) => [...prev, ...fetched]);
+      } catch (error) {
+        console.error("Failed to fetch initial members for select:", error);
+      }
+    };
+    fetchInitial();
+  }, [selectedIds, selectedObjects]);
+
+  // Debounced search
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const response = await membersService.search(searchQuery);
+        // Exclude self if excludeId is provided
+        const filtered = (response.data || []).filter(m => m.id !== excludeId);
+        setSearchResults(filtered);
+      } catch (error) {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery, excludeId]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -71,16 +94,27 @@ export function MemberRelationSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (memberId) => {
+  const handleSelect = (member) => {
     if (multiple) {
-      const nextValue = selectedIds.includes(memberId)
-        ? selectedIds.filter((id) => id !== memberId)
-        : [...selectedIds, memberId];
+      const nextValue = selectedIds.includes(member.id)
+        ? selectedIds.filter((id) => id !== member.id)
+        : [...selectedIds, member.id];
+      
+      if (!selectedIds.includes(member.id)) {
+        setSelectedObjects(prev => [...prev, member]);
+      }
+      
       onChange(nextValue);
       return;
     }
 
-    onChange(memberId === value ? "" : memberId);
+    if (member.id === value) {
+      onChange("");
+    } else {
+      setSelectedObjects([member]);
+      onChange(member.id);
+    }
+    
     setOpen(false);
     setSearchQuery("");
   };
@@ -88,27 +122,23 @@ export function MemberRelationSelect({
   const handleRemove = (memberId) => {
     if (multiple) {
       onChange(selectedIds.filter((id) => id !== memberId));
+      setSelectedObjects(prev => prev.filter(m => m.id !== memberId));
       return;
     }
-
     onChange("");
+    setSelectedObjects([]);
   };
 
-  const displayText = multiple
-    ? selectedMembers.length
-      ? `${selectedMembers.length} selected`
-      : placeholder
-    : selectedMembers[0]
-      ? getMemberLabel(selectedMembers[0])
-      : placeholder;
+  // Only consider currently valid selected objects
+  const activeSelectedObjects = selectedObjects.filter(m => selectedIds.includes(m.id));
 
   return (
     <div className="space-y-2" ref={containerRef}>
       <Label>{label}</Label>
 
-      {multiple && selectedMembers.length > 0 && (
+      {multiple && activeSelectedObjects.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {selectedMembers.map((member) => (
+          {activeSelectedObjects.map((member) => (
             <span
               key={member.id}
               className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
@@ -119,6 +149,7 @@ export function MemberRelationSelect({
                 className="rounded-full hover:bg-primary/20"
                 onClick={() => handleRemove(member.id)}
                 aria-label={`Remove ${member.name}`}
+                disabled={disabled}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -132,7 +163,7 @@ export function MemberRelationSelect({
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            value={open ? searchQuery : (!multiple && selectedMembers.length > 0 ? getMemberLabel(selectedMembers[0]) : "")}
+            value={open ? searchQuery : (!multiple && activeSelectedObjects.length > 0 ? getMemberLabel(activeSelectedObjects[0]) : "")}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               if (!open) setOpen(true);
@@ -147,14 +178,21 @@ export function MemberRelationSelect({
 
         {open && (
           <div className="absolute z-50 mt-1 w-full rounded-md border bg-background shadow-lg">
-
             <ul className="max-h-48 overflow-y-auto py-1">
-              {filteredMembers.length === 0 ? (
+              {isSearching ? (
+                <li className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Searching...
+                </li>
+              ) : searchResults.length === 0 && searchQuery.trim().length > 0 ? (
                 <li className="px-3 py-2 text-sm text-muted-foreground">
                   No members found.
                 </li>
+              ) : searchResults.length === 0 && searchQuery.trim().length === 0 ? (
+                <li className="px-3 py-2 text-sm text-muted-foreground">
+                  Type to search members...
+                </li>
               ) : (
-                filteredMembers.map((member) => {
+                searchResults.map((member) => {
                   const isSelected = selectedIds.includes(member.id);
 
                   return (
@@ -165,7 +203,7 @@ export function MemberRelationSelect({
                           "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
                           isSelected && "bg-primary/5"
                         )}
-                        onClick={() => handleSelect(member.id)}
+                        onClick={() => handleSelect(member)}
                       >
                         {multiple && (
                           <span

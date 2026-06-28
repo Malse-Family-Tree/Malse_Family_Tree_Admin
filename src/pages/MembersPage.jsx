@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMemberMutations, useMembers, useAllMembers } from "@/hooks/useMembers";
+import { useMemberMutations, useMembers } from "@/hooks/useMembers";
 import { formatGenerationLabel, useGenerations } from "@/hooks/useGenerations";
 import { uploadService } from "@/services/upload.service";
 import { getPhotoUrl } from "@/utils/photoUrl";
@@ -91,7 +91,6 @@ function MemberFormModal({
   onSubmit,
   isSubmitting,
   errorMessage,
-  allMembers = [],
   generations = [],
   currentMemberId,
 }) {
@@ -289,7 +288,6 @@ function MemberFormModal({
               <MemberRelationSelect
                 label="Parents"
                 placeholder="Select parent(s)..."
-                members={allMembers}
                 value={values.parentIds}
                 onChange={(parentIds) =>
                   setValues((current) => ({ ...current, parentIds }))
@@ -304,7 +302,6 @@ function MemberFormModal({
               <MemberRelationSelect
                 label="Spouse"
                 placeholder="Select spouse..."
-                members={allMembers}
                 value={values.spouseId}
                 onChange={(spouseId) =>
                   setValues((current) => ({ ...current, spouseId }))
@@ -318,7 +315,6 @@ function MemberFormModal({
               <MemberRelationSelect
                 label="Children"
                 placeholder="Select child(ren)..."
-                members={allMembers}
                 value={values.childrenIds}
                 onChange={(childrenIds) =>
                   setValues((current) => ({ ...current, childrenIds }))
@@ -375,7 +371,6 @@ export function MembersPage() {
   const [deleteError, setDeleteError] = useState("");
   const [bulkDeleteError, setBulkDeleteError] = useState("");
   const [formError, setFormError] = useState("");
-  const { data: allMembers = [] } = useAllMembers({ enabled: formOpen });
   const { createMember, updateMember, deleteMember, bulkDeleteMembers } = useMemberMutations();
 
   const handleBulkDelete = async (selectedIds, clearSelection) => {
@@ -541,7 +536,6 @@ export function MembersPage() {
         onSubmit={handleSubmit}
         isSubmitting={createMember.isPending || updateMember.isPending}
         errorMessage={formError}
-        allMembers={allMembers}
         generations={generations}
         currentMemberId={editingMember?.id}
       />

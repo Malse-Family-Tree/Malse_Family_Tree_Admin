@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA fallback: public/_redirects is copied into dist during Vite build.
+# This block mirrors the same rule for Netlify dashboard-only setups.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

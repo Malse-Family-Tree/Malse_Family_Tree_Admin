@@ -1,0 +1,25 @@
+# Example Nginx config for a Vite + React Router SPA (BrowserRouter).
+# Copy/adapt for your server. Point `root` at the Vite build output (`dist`).
+
+server {
+    listen 80;
+    server_name admin.example.com;
+
+    root /var/www/malse-family-tree-admin/dist;
+    index index.html;
+
+    # SPA fallback: try the file, then directory, then index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Hashed Vite assets — long cache (filenames change on each build)
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Optional: gzip for text assets
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+}
